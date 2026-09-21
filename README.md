@@ -6,4 +6,5 @@ Materia: Projeto Integrador II
 Equipe: Luann | Kauã Ferreira | Karla Geovana | Janaina Gabrielly
 
 
-
+## Planejamento
+Quadro do projeto: <https://trello.com/b/SqtXnjiq/nobugs>
