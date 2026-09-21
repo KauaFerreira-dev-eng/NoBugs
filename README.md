@@ -3,7 +3,7 @@
 Curso: Analise e Desenvolvimento de Sistema - UEPB 
 Materia: Projeto Integrador II
  
-Equipe: Luann | Kauã Ferreira | Karla Geovana | Janaina Gabrielly
+Equipe: José Luann de Lira Fidelis | Kauã Ferreira | Karla Geovana Gomes Trajano | Janaina Gabrielly Barbosa Farias
 
 
 ## Planejamento
