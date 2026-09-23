@@ -30,4 +30,8 @@
 - Primeiro, a equipe discute o ponto de discordância em reunião (Google Meet/Discord) ou no Whatsapp, ouvindo o argumento de cada lado.
 - Se não houver consenso, a decisão vai para **votação simples entre os quatro integrantes**.
 - Em caso de empate, o critério de desempate é o que for **mais viável tecnicamente dentro do prazo**, avaliado em conjunto por quem está com a frente técnica (Luann).
+
+## 6. Assinaturas
+ 
+Todos os integrantes leram e concordam. O commit deste arquivo, com os nomes acima, vale como concordância.
 ----
