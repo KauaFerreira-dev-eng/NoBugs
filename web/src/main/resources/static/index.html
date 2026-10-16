@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cidade Ouve</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1b2a33; }
+    h1 { margin-bottom: .2rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: .5rem; margin-top: .3rem; box-sizing: border-box; font: inherit; }
+    button { margin-top: 1rem; padding: .6rem 1rem; font: inherit; cursor: pointer; }
+    .msg { margin-top: 1rem; padding: .8rem; border-radius: 6px; }
+    .ok { background: #e3f6e8; } .erro { background: #fde7e7; }
+    small { color: #5b6b75; }
+    li { margin-bottom: .6rem; }
+  </style>
+</head>
+<body>
+  <h1>Cidade Ouve</h1>
+  <p>Registre um problema urbano no seu bairro.</p>
+
+  <form id="form">
+    <label for="categoria">Categoria *</label>
+    <select id="categoria"><option value="">Selecione...</option></select>
+
+    <label for="descricao">Descrição *</label>
+    <textarea id="descricao" rows="4" maxlength="500"></textarea>
+    <small><span id="contador">0</span>/500</small>
+
+    <label for="endereco">Endereço</label>
+    <input id="endereco" placeholder="Rua, número, bairro">
+    <button type="button" id="gps">Usar minha localização</button>
+    <small id="coords"></small>
+
+    <button type="submit">Enviar ocorrência</button>
+  </form>
+
+  <div id="resultado"></div>
+
+  <h2>Ocorrências registradas</h2>
+  <ul id="lista"></ul>
+
+  <script>
+    let latitude = null, longitude = null;
+    const $ = (id) => document.getElementById(id);
+
+    async function carregarCategorias() {
+      const resp = await fetch('/ocorrencias/categorias');
+      (await resp.json()).forEach(c => {
+        const op = document.createElement('option');
+        op.value = c.codigo; op.textContent = c.nome;
+        $('categoria').appendChild(op);
+      });
+    }
+
+    async function carregarLista() {
+      const resp = await fetch('/ocorrencias');
+      const lista = $('lista'); lista.innerHTML = '';
+      (await resp.json()).forEach(o => {
+        const li = document.createElement('li');
+        li.textContent = `${o.protocolo} | ${o.categoria} | órgão: ${o.orgao} | ${o.status} | ${o.descricao}`;
+        lista.appendChild(li);
+      });
+    }
+
+    $('descricao').addEventListener('input', () => { $('contador').textContent = $('descricao').value.length; });
+
+    $('gps').addEventListener('click', () => {
+      if (!navigator.geolocation) { $('coords').textContent = 'Seu navegador não tem GPS. Digite o endereço.'; return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          latitude = pos.coords.latitude; longitude = pos.coords.longitude;
+          $('coords').textContent = `Localização capturada: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        },
+        () => { latitude = longitude = null; $('coords').textContent = 'Sem permissão ou GPS falhou. Digite o endereço.'; }
+      );
+    });
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const corpo = {
+        descricao: $('descricao').value,
+        categoria: $('categoria').value || null,
+        endereco: $('endereco').value,
+        latitude, longitude
+      };
+      const resp = await fetch('/ocorrencias', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
+      });
+      const dados = await resp.json();
+      const box = $('resultado');
+      if (resp.ok) {
+        box.className = 'msg ok';
+        box.textContent = `Ocorrência registrada! Protocolo: ${dados.protocolo} (encaminhada a: ${dados.orgao})`;
+        $('form').reset(); latitude = longitude = null; $('coords').textContent = ''; $('contador').textContent = '0';
+        carregarLista();
+      } else {
+        box.className = 'msg erro';
+        box.textContent = dados.campos ? Object.values(dados.campos).join(' | ') : dados.erro;
+      }
+    });
+
+    carregarCategorias(); carregarLista();
+  </script>
+</body>
+</html>
