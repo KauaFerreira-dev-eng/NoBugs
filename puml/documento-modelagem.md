@@ -2,8 +2,6 @@
 
 Equipe NoBugs · PIPP II · UEPB ADS 7
 
-> Pontos marcados com **[CONFIRMAR]** foram assumidos a partir da Proposta, dos requisitos RF01–RF10 e do Registro da Iteração 1. Ajustem aos nomes do diagrama de casos de uso da sessão de 14/10 e ao código do repositório.
-
 ## 1. Dicionário de classes
 
 ### Usuario
@@ -105,11 +103,11 @@ Região usada para visualizar ocorrências e gerar estatísticas (RF07, RF08).
 ### Enums
 - **Perfil**: MORADOR, ORGAO_PUBLICO, ADMINISTRADOR.
 - **StatusOcorrencia**: REGISTRADA, EM_ANALISE, EM_ANDAMENTO, RESOLVIDA (da Proposta). Método `podeAvancarPara(novo)` aplica a RN04.
-- **NivelRisco**: BAIXO, MEDIO, ALTO **[CONFIRMAR os níveis do RF04]**.
+- **NivelRisco**: BAIXO, MEDIO, ALTO 
 
 ## 2. Regras de negócio e onde moram
 
-O documento de requisitos não numera regras de negócio. Derivei as abaixo do RF04, da Proposta e do Registro da Iteração 1 **[CONFIRMAR com a equipe]**.
+O documento de requisitos não numera regras de negócio. Derivei as abaixo do RF04, da Proposta e do Registro da Iteração 1 
 
 | Regra | Onde mora | Método |
 |---|---|---|
@@ -136,7 +134,7 @@ O documento de requisitos não numera regras de negócio. Derivei as abaixo do R
 - **Alt:** sem permissão ou com transição inválida (por exemplo, REGISTRADA direto para RESOLVIDA), o sistema recusa e informa o motivo (RN04, RN06).
 - **Premissas:** o servidor está autenticado; a ocorrência existe.
 
-## 4. Tabela de correspondência **[CONFIRMAR com o diagrama de 14/10]**
+## 4. Tabela de correspondência 
 
 | Caso de uso | Classes que participam |
 |---|---|
@@ -153,9 +151,4 @@ O documento de requisitos não numera regras de negócio. Derivei as abaixo do R
 
 **Classes separadas:** Ocorrencia, Usuario, Categoria, Bairro, HistoricoStatus e Notificacao. Categoria e Bairro viraram classes, e não enums, porque o administrador pode precisar cadastrar novos valores e porque as estatísticas agrupam por eles. HistoricoStatus é classe porque a mudança de status guarda dados próprios (quem, quando, de qual status para qual) e é composição de Ocorrencia: some junto com ela. Notificacao existe porque a Proposta prevê avisar o morador e o aviso precisa ser guardado para ser consultado depois. **Atributos:** descrição, foto, coordenadas, endereço aproximado e protocolo ficam em Ocorrencia, pois não têm vida própria; a foto é um único campo opcional. **Enums:** Perfil, StatusOcorrencia e NivelRisco têm valores fixos e ninguém cadastra novos. Os três atores viraram um atributo `perfil` em Usuario, e não herança, porque a diferença entre eles é de permissão, não de dados. Relatos repetidos foram modelados como associação da Ocorrencia com ela mesma, e não como classe Relato, para manter o modelo enxuto; se a equipe quiser guardar dados próprios de cada relato repetido (quem relatou, quando), Relato vira classe. **Fora do modelo:** estatísticas, painel e relatórios são saídas de consultas, e não há classes de tela.
 
-## 6. Perguntas para a equipe antes de entregar
-1. Os casos de uso e atores batem com o diagrama de 14/10?
-2. As entidades do código Spring Boot batem com estas classes (nomes e atributos)?
-3. Categoria como classe ou enum? O Administrador cadastra categorias?
-4. Relato repetido: autoassociação ou classe Relato?
-5. Quais são os níveis de risco do RF04?
+
