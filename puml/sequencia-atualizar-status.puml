@@ -1,0 +1,28 @@
+@startuml
+title Sequencia - Atualizar status da ocorrencia
+actor OrgaoPublico
+participant ":TelaGestao" as Tela
+participant ":Ocorrencia" as Oc
+participant ":Usuario" as Usu
+participant ":StatusOcorrencia" as St
+participant ":HistoricoStatus" as Hist
+participant ":Notificacao" as Not
+
+OrgaoPublico -> Tela : selecionar ocorrencia e novo status
+Tela -> Oc : atualizarStatus(novo, autor)
+Oc -> Usu : podeAtualizarStatus()
+Usu --> Oc : resultado
+Oc -> St : podeAvancarPara(novo)
+St --> Oc : resultado
+alt perfil autorizado e transicao valida
+ Oc -> Hist : registrar(oc, anterior, novo, autor)
+ Hist --> Oc : ok
+ Oc -> Not : enviar(destinatario, oc, mensagem)
+ Not --> Oc : ok
+ Oc --> Tela : ok
+ Tela --> OrgaoPublico : confirmar atualizacao
+else sem permissao ou transicao invalida
+ Oc --> Tela : erro
+ Tela --> OrgaoPublico : recusar e informar o motivo
+end
+@enduml
