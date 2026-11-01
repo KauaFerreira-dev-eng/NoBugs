@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,17 +28,24 @@ public class OcorrenciaController {
         this.service = service;
     }
 
-    /** POST /ocorrencias: registra uma ocorrência. Devolve 201 com o protocolo, ou 400 se faltar algo. */
+    /** POST /ocorrencias: registra uma ocorrência do usuário logado. Devolve 201 com o protocolo. */
     @PostMapping
-    public ResponseEntity<OcorrenciaResponse> registrar(@Valid @RequestBody OcorrenciaRequest request) {
-        Ocorrencia ocorrencia = service.registrar(request);
+    public ResponseEntity<OcorrenciaResponse> registrar(@Valid @RequestBody OcorrenciaRequest request,
+                                                        Authentication autenticacao) {
+        Ocorrencia ocorrencia = service.registrar(request, autenticacao.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(OcorrenciaResponse.from(ocorrencia));
     }
 
-    /** GET /ocorrencias: lista as ocorrências registradas. */
+    /** GET /ocorrencias/minhas: as ocorrências do usuário logado ("Minhas ocorrências"). */
+    @GetMapping("/minhas")
+    public List<OcorrenciaResponse> minhas(Authentication autenticacao) {
+        return service.listarDoAutor(autenticacao.getName()).stream().map(OcorrenciaResponse::from).toList();
+    }
+
+    /** GET /ocorrencias: todas as ocorrências. Só ORGAO e ADMIN (regra em SecurityConfig). */
     @GetMapping
     public List<OcorrenciaResponse> listar() {
-        return service.listar().stream().map(OcorrenciaResponse::from).toList();
+        return service.listarTodas().stream().map(OcorrenciaResponse::from).toList();
     }
 
     /** GET /ocorrencias/categorias: alimenta o seletor de categorias da tela. */
