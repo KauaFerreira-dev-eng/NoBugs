@@ -14,6 +14,11 @@
     .ok { background: #e3f6e8; } .erro { background: #fde7e7; }
     small { color: #5b6b75; }
     li { margin-bottom: .6rem; }
+    .admin { margin-top: 2rem; padding: 1rem; border: 1px solid #c9d3da; border-radius: 6px; }
+    .reatribuir { display: flex; gap: .5rem; margin-top: .3rem; }
+    .reatribuir select { margin-top: 0; }
+    .reatribuir button { margin-top: 0; white-space: nowrap; }
+    .historico { display: block; color: #5b6b75; margin-top: .2rem; }
   </style>
 </head>
 <body>
@@ -38,6 +43,16 @@
 
   <div id="resultado"></div>
 
+  <div class="admin">
+    <h2 style="margin-top:0">Área do órgão / administrador</h2>
+    <div id="sessao"></div>
+
+    <label for="filtroOrgao">Ver ocorrências do órgão</label>
+    <select id="filtroOrgao"><option value="">Todos</option></select>
+  </div>
+
+  <div id="resultadoAdmin"></div>
+
   <h2>Ocorrências registradas</h2>
   <ul id="lista"></ul>
 
@@ -54,15 +69,103 @@
       });
     }
 
+    let orgaos = [];
+
+    async function carregarOrgaos() {
+      const resp = await fetch('/ocorrencias/orgaos');
+      orgaos = await resp.json();
+      orgaos.forEach(o => {
+        const op = document.createElement('option');
+        op.value = o.codigo; op.textContent = o.nome;
+        $('filtroOrgao').appendChild(op);
+      });
+    }
+
+    let usuarioAtual = null;
+
+    const podeReatribuir = () => usuarioAtual && ['ORGAO_PUBLICO', 'ADMINISTRADOR'].includes(usuarioAtual.perfil);
+
+    async function carregarSessao() {
+      const resp = await fetch('/auth/eu');
+      usuarioAtual = resp.ok ? await resp.json() : null;
+      const box = $('sessao');
+      box.textContent = '';
+      const link = document.createElement('a');
+      link.href = '/painel.html';
+      if (usuarioAtual) {
+        box.append(`Logado como ${usuarioAtual.nome}. `);
+        link.textContent = 'Abrir painel de gráficos';
+        box.appendChild(link);
+      } else {
+        link.textContent = 'Entrar';
+        box.append(link, ' para trocar o órgão de uma ocorrência e ver os gráficos.');
+      }
+    }
+    const nomeOrgao = (codigo) => (orgaos.find(o => o.codigo === codigo) || {}).nome || codigo;
+
     async function carregarLista() {
-      const resp = await fetch('/ocorrencias');
+      const filtro = $('filtroOrgao').value;
+      const resp = await fetch('/ocorrencias' + (filtro ? `?orgao=${filtro}` : ''));
       const lista = $('lista'); lista.innerHTML = '';
       (await resp.json()).forEach(o => {
         const li = document.createElement('li');
-        li.textContent = `${o.protocolo} | ${o.categoria} | órgão: ${o.orgao} | ${o.status} | ${o.descricao}`;
+        li.textContent = `${o.protocolo} | ${o.categoria} | órgão: ${nomeOrgao(o.orgao)} | ${o.status} | ${o.descricao}`;
+
+        if (podeReatribuir()) {
+          const linha = document.createElement('div');
+          linha.className = 'reatribuir';
+          const sel = document.createElement('select');
+          orgaos.forEach(og => {
+            const op = document.createElement('option');
+            op.value = og.codigo; op.textContent = og.nome;
+            if (og.codigo === o.orgao) op.selected = true;
+            sel.appendChild(op);
+          });
+          const btn = document.createElement('button');
+          btn.type = 'button'; btn.textContent = 'Reatribuir';
+          btn.addEventListener('click', () => reatribuir(o.id, sel.value));
+          linha.append(sel, btn);
+          li.appendChild(linha);
+        }
+
+        const hist = document.createElement('small');
+        hist.className = 'historico';
+        li.appendChild(hist);
+        carregarHistorico(o.id, hist);
+
         lista.appendChild(li);
       });
     }
+
+    async function carregarHistorico(id, elemento) {
+      const resp = await fetch(`/ocorrencias/${id}/historico`);
+      if (!resp.ok) return;
+      const trocas = await resp.json();
+      if (trocas.length === 0) return;
+      const t = trocas[0];
+      elemento.textContent = `Última troca: ${nomeOrgao(t.orgaoAnterior)} → ${nomeOrgao(t.orgaoNovo)}`
+        + ` por ${t.autor} em ${new Date(t.dataHora).toLocaleString('pt-BR')}`;
+    }
+
+    async function reatribuir(id, orgao) {
+      const resp = await fetch(`/ocorrencias/${id}/orgao`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgao })
+      });
+      const dados = await resp.json();
+      const box = $('resultadoAdmin');
+      if (resp.ok) {
+        box.className = 'msg ok';
+        box.textContent = `Ocorrência ${dados.protocolo} reatribuída para: ${nomeOrgao(dados.orgao)}`;
+        carregarLista();
+      } else {
+        box.className = 'msg erro';
+        box.textContent = dados.campos ? Object.values(dados.campos).join(' | ') : dados.erro;
+      }
+    }
+
+    $('filtroOrgao').addEventListener('change', carregarLista);
 
     $('descricao').addEventListener('input', () => { $('contador').textContent = $('descricao').value.length; });
 
@@ -101,7 +204,8 @@
       }
     });
 
-    carregarCategorias(); carregarLista();
+    carregarCategorias();
+    Promise.all([carregarSessao(), carregarOrgaos()]).then(carregarLista);
   </script>
 </body>
 </html>

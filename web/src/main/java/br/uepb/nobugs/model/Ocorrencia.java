@@ -77,4 +77,9 @@ public class Ocorrencia {
     public Double getLongitude() { return longitude; }
     public Status getStatus() { return status; }
     public LocalDateTime getCriadoEm() { return criadoEm; }
+
+    /** Troca o órgão responsável. Quem chama (o service) é que confere permissão e registra o histórico. */
+    public void reatribuirOrgao(Orgao novoOrgao) {
+        this.orgao = novoOrgao;
+    }
 }
