@@ -5,6 +5,7 @@ import br.uepb.nobugs.exception.RegraDeNegocioException;
 import br.uepb.nobugs.model.Papel;
 import br.uepb.nobugs.model.Usuario;
 import br.uepb.nobugs.repository.UsuarioRepository;
+import java.nio.charset.StandardCharsets;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,10 @@ public class UsuarioService {
         String emailNormalizado = normalizar(email);
         if (repository.existsByEmail(emailNormalizado)) {
             throw new RegraDeNegocioException("Já existe um cadastro com este e-mail.");
+        }
+        // BCrypt só lê os 72 primeiros BYTES da senha; letras com acento ocupam mais de 1 byte
+        if (senha.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new RegraDeNegocioException("A senha é longa demais. Use uma senha mais curta.");
         }
         String hash = passwordEncoder.encode(senha);
         return repository.save(new Usuario(nome.trim(), emailNormalizado, hash, Papel.MORADOR));

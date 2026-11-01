@@ -52,4 +52,11 @@ class UsuarioServiceTest {
         assertThrows(RegraDeNegocioException.class,
                 () -> service.cadastrar("Ana", "ana@exemplo.com", "senhaSegura123"));
     }
+
+    @Test
+    void recusaSenhaAcimaDoLimiteDoBcryptEmBytes() {
+        String senhaComAcentos = "á1".repeat(30); // 60 caracteres, mas mais de 72 bytes
+        assertThrows(RegraDeNegocioException.class,
+                () -> service.cadastrar("Ana", "ana@exemplo.com", senhaComAcentos));
+    }
 }

@@ -2,6 +2,7 @@ package br.uepb.nobugs.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record CadastroRequest(
@@ -15,6 +16,7 @@ public record CadastroRequest(
         String email,
 
         @NotBlank(message = "A senha é obrigatória")
-        @Size(min = 8, max = 72, message = "A senha deve ter de 8 a 72 caracteres")
+        @Size(min = 8, max = 64, message = "A senha deve ter de 8 a 64 caracteres")
+        @Pattern(regexp = "^(?=.*\\p{L})(?=.*\\d).*$", message = "A senha deve ter pelo menos uma letra e um número")
         String senha) {
 }
