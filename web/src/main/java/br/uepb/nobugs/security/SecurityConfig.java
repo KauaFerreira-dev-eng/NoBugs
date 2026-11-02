@@ -39,8 +39,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // públicas: a tela, o login e o cadastro
                 .requestMatchers("/", "/index.html", "/saude", "/auth/login", "/auth/cadastro").permitAll()
-                // autorização por papel: a lista completa é do órgão e do administrador
+                // o painel é só a "casca" da tela: quem protege os números é o /estatisticas (exige login e papel)
+                .requestMatchers("/painel.html").permitAll()
+                // listas fixas (categorias e órgãos), usadas pelas telas antes e depois do login
+                .requestMatchers(HttpMethod.GET, "/ocorrencias/categorias", "/ocorrencias/orgaos").permitAll()
+                // autorização por papel: a lista completa, o histórico, a reatribuição e os gráficos são do órgão e do administrador
                 .requestMatchers(HttpMethod.GET, "/ocorrencias").hasAnyRole("ORGAO", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/ocorrencias/*/historico").hasAnyRole("ORGAO", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/ocorrencias/*/orgao").hasAnyRole("ORGAO", "ADMIN")
+                .requestMatchers("/estatisticas").hasAnyRole("ORGAO", "ADMIN")
                 // todo o resto exige estar logado
                 .anyRequest().authenticated())
             .exceptionHandling(erros -> erros

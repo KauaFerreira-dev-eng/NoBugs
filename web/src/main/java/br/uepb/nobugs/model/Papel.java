@@ -4,5 +4,10 @@ package br.uepb.nobugs.model;
 public enum Papel {
     MORADOR,
     ORGAO,
-    ADMIN
+    ADMIN;
+
+    /** Quem pode reatribuir o órgão responsável de uma ocorrência. */
+    public boolean podeReatribuirOrgao() {
+        return this == ORGAO || this == ADMIN;
+    }
 }

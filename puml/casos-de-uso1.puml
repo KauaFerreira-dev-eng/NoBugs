@@ -1,0 +1,29 @@
+@startuml
+title Cidade Ouve - Diagrama de casos de uso
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Morador" as Mor
+actor "Órgão público" as Org
+actor "Administrador" as Adm
+
+rectangle "Cidade Ouve" {
+ usecase "Registrar ocorrência" as UC1
+ usecase "Consultar minhas ocorrências" as UC2
+ usecase "Classificar risco da ocorrência" as UC3
+ usecase "Atualizar status da ocorrência" as UC4
+ usecase "Visualizar ocorrências por região" as UC5
+ usecase "Gerar estatísticas" as UC6
+ usecase "Manter categorias" as UC7
+ usecase "Gerenciar usuários" as UC8
+}
+
+Mor --> UC1
+Mor --> UC2
+Org --> UC3
+Org --> UC4
+Org --> UC5
+Org --> UC6
+Adm --> UC7
+Adm --> UC8
+@enduml

@@ -100,6 +100,12 @@
     .ocorrencia p { margin: .4rem 0 0; }
     .meta { color: var(--texto-suave); font-size: .9rem; }
 
+    /* área do órgão / administrador */
+    .reatribuir { display: flex; gap: .5rem; margin-top: .6rem; flex-wrap: wrap; align-items: center; }
+    .reatribuir select { width: auto; flex: 1 1 200px; margin-top: 0; }
+    .historico { display: block; margin-top: .4rem; }
+    .filtro-orgao { max-width: 320px; }
+
     @media (max-width: 560px) { .etapas .rotulo { font-size: .75rem; } #mapa { height: 260px; } }
   </style>
 </head>
@@ -128,8 +134,8 @@
         </div>
 
         <form id="form-login" novalidate>
-          <label for="login-email">E-mail</label>
-          <input id="login-email" type="email" autocomplete="username">
+          <label for="login-email">E-mail ou login</label>
+          <input id="login-email" autocomplete="username">
           <label for="login-senha">Senha</label>
           <input id="login-senha" type="password" autocomplete="current-password">
           <div class="acoes"><button type="submit" class="btn primario">Entrar</button></div>
@@ -140,7 +146,7 @@
           <input id="cad-nome" autocomplete="name" maxlength="100">
           <label for="cad-email">E-mail</label>
           <input id="cad-email" type="email" autocomplete="username">
-          <label for="cad-senha">Senha <span class="dica">(de 8 a 72 caracteres)</span></label>
+          <label for="cad-senha">Senha <span class="dica">(de 8 a 64 caracteres, com letra e número)</span></label>
           <input id="cad-senha" type="password" autocomplete="new-password">
           <div class="acoes"><button type="submit" class="btn primario">Criar conta</button></div>
         </form>
@@ -218,6 +224,19 @@
         <h2>Minhas ocorrências</h2>
         <div id="lista"></div>
       </div>
+
+      <!-- só aparece para ORGAO e ADMIN -->
+      <div class="cartao" id="area-orgao" hidden>
+        <h2>Área do órgão</h2>
+        <p id="quem-orgao"></p>
+        <p><a href="/painel.html">Abrir painel de gráficos</a></p>
+        <div id="bloco-filtro-orgao">
+          <label for="filtro-orgao">Ver ocorrências do órgão</label>
+          <select id="filtro-orgao" class="filtro-orgao"><option value="">Todos</option></select>
+        </div>
+        <div id="resultado-orgao" role="status"></div>
+        <div id="lista-orgao"></div>
+      </div>
     </section>
   </main>
 
@@ -238,6 +257,10 @@
     let etapa = 1;
     let mapa = null, marcador = null, circulo = null;
     const $ = (id) => document.getElementById(id);
+    let usuarioAtual = null;
+    let orgaos = [];                      // [{codigo, nome}] vindos de /ocorrencias/orgaos
+    const nomeOrgao = (codigo) => (orgaos.find(o => o.codigo === codigo) || {}).nome || codigo;
+    const ehDoOrgao = () => usuarioAtual && ['ORGAO', 'ADMIN'].includes(usuarioAtual.papel);
 
     /* ---------- chamadas à API (erro padrão: codigo, mensagem, campos) ---------- */
     async function api(url, opcoes) {
@@ -287,9 +310,10 @@
       $('tela-app').hidden = false;
       $('area-usuario').hidden = false;
       $('nome-usuario').textContent = usuario.nome;
+      usuarioAtual = usuario;
       if (!iniciado) { iniciado = true; carregarCategorias(); iniciarMapa(); }
       irParaEtapa(1);
-      carregarLista();
+      carregarOrgaos().then(() => { carregarLista(); prepararAreaDoOrgao(); });
       capturarLocalizacao();   // critério do card: preencher a localização automaticamente ao abrir a tela
     }
 
@@ -308,7 +332,7 @@
       e.preventDefault();
       const r = await api('/auth/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: $('login-email').value, senha: $('login-senha').value })
+        body: JSON.stringify({ login: $('login-email').value, senha: $('login-senha').value })
       });
       if (r.ok) { $('login-senha').value = ''; mostrarTelaApp(r.dados); }
       else mensagem('msg-login', 'erro', textoDoErro(r.dados));
@@ -323,7 +347,7 @@
       if (!r.ok) { mensagem('msg-login', 'erro', textoDoErro(r.dados)); return; }
       const entrada = await api('/auth/login', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cadastro.email, senha: cadastro.senha })
+        body: JSON.stringify({ login: cadastro.email, senha: cadastro.senha })
       });
       $('cad-senha').value = '';
       if (entrada.ok) mostrarTelaApp(entrada.dados);
@@ -333,6 +357,9 @@
     $('sair').addEventListener('click', async () => {
       await api('/auth/logout', { method: 'POST' });
       $('lista').innerHTML = ''; mensagem('resultado', '', '');
+      $('lista-orgao').innerHTML = ''; mensagem('resultado-orgao', '', '');
+      $('area-orgao').hidden = true;
+      usuarioAtual = null;
       mostrarTelaLogin();
     });
 
@@ -366,11 +393,102 @@
         topo.append(prot, selo);
         const desc = document.createElement('p'); desc.textContent = o.descricao;
         const meta = document.createElement('p'); meta.className = 'meta';
-        meta.textContent = `${o.categoria} · órgão: ${o.orgao}` + (o.endereco ? ` · ${o.endereco}` : '');
+        meta.textContent = `${o.categoria} · órgão: ${nomeOrgao(o.orgao)}` + (o.endereco ? ` · ${o.endereco}` : '');
         item.append(topo, desc, meta);
         lista.appendChild(item);
       });
     }
+
+    /* ---------- área do órgão / administrador: listar, reatribuir e ver histórico ---------- */
+    async function carregarOrgaos() {
+      if (orgaos.length > 0) return;
+      const r = await api('/ocorrencias/orgaos');
+      if (!r.ok) return;
+      orgaos = r.dados;
+    }
+
+    function prepararAreaDoOrgao() {
+      $('area-orgao').hidden = !ehDoOrgao();
+      if (!ehDoOrgao()) return;
+      const papel = usuarioAtual.papel === 'ADMIN' ? 'administrador' : 'órgão público';
+      $('bloco-filtro-orgao').hidden = usuarioAtual.papel !== 'ADMIN';   // o órgão sempre vê só as próprias
+      $('quem-orgao').textContent = `Você está logado como ${papel}. Aqui você vê as ocorrências${usuarioAtual.papel === 'ORGAO' ? ' do seu órgão' : ''} e pode trocar o órgão responsável.`;
+      const filtro = $('filtro-orgao');
+      if (filtro.options.length === 1) {
+        orgaos.forEach(o => {
+          const op = document.createElement('option');
+          op.value = o.codigo; op.textContent = o.nome;
+          filtro.appendChild(op);
+        });
+      }
+      carregarListaOrgao();
+    }
+
+    async function carregarListaOrgao() {
+      if (!ehDoOrgao()) return;
+      const filtro = $('filtro-orgao').value;
+      const r = await api('/ocorrencias' + (filtro ? `?orgao=${encodeURIComponent(filtro)}` : ''));
+      const lista = $('lista-orgao'); lista.innerHTML = '';
+      if (!r.ok) return;
+      if (r.dados.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = 'Nenhuma ocorrência para mostrar.';
+        lista.appendChild(p);
+        return;
+      }
+      r.dados.forEach(o => {
+        const item = document.createElement('article');
+        item.className = 'ocorrencia';
+        const topo = document.createElement('div'); topo.className = 'topo';
+        const prot = document.createElement('span'); prot.textContent = o.protocolo;
+        const selo = document.createElement('span'); selo.className = 'selo'; selo.textContent = o.status;
+        topo.append(prot, selo);
+        const desc = document.createElement('p'); desc.textContent = o.descricao;
+        const meta = document.createElement('p'); meta.className = 'meta';
+        meta.textContent = `${o.categoria} · órgão: ${nomeOrgao(o.orgao)}` + (o.endereco ? ` · ${o.endereco}` : '');
+
+        const linha = document.createElement('div'); linha.className = 'reatribuir';
+        const sel = document.createElement('select');
+        sel.setAttribute('aria-label', `Novo órgão da ocorrência ${o.protocolo}`);
+        orgaos.forEach(og => {
+          const op = document.createElement('option');
+          op.value = og.codigo; op.textContent = og.nome;
+          if (og.codigo === o.orgao) op.selected = true;
+          sel.appendChild(op);
+        });
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'btn secundario pequeno'; btn.textContent = 'Reatribuir';
+        btn.addEventListener('click', () => reatribuir(o.id, sel.value));
+        linha.append(sel, btn);
+
+        const hist = document.createElement('span'); hist.className = 'meta historico';
+        item.append(topo, desc, meta, linha, hist);
+        lista.appendChild(item);
+        carregarHistorico(o.id, hist);
+      });
+    }
+
+    async function carregarHistorico(id, elemento) {
+      const r = await api(`/ocorrencias/${id}/historico`);
+      if (!r.ok || r.dados.length === 0) return;
+      const t = r.dados[0];
+      elemento.textContent = `Última troca: ${nomeOrgao(t.orgaoAnterior)} → ${nomeOrgao(t.orgaoNovo)}`
+        + ` por ${t.autor} em ${new Date(t.dataHora).toLocaleString('pt-BR')}`;
+    }
+
+    async function reatribuir(id, orgao) {
+      const r = await api(`/ocorrencias/${id}/orgao`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgao })
+      });
+      if (r.ok) {
+        mensagem('resultado-orgao', 'sucesso', `Ocorrência ${r.dados.protocolo} reatribuída para: ${nomeOrgao(r.dados.orgao)}.`);
+        carregarListaOrgao();
+        carregarLista();
+      } else {
+        mensagem('resultado-orgao', 'erro', textoDoErro(r.dados));
+      }
+    }
+    $('filtro-orgao').addEventListener('change', carregarListaOrgao);
 
     $('descricao').addEventListener('input', () => { $('contador').textContent = $('descricao').value.length; });
 
@@ -580,7 +698,7 @@
         if (marcador && mapa) { mapa.removeLayer(marcador); marcador = null; }
         if (circulo && mapa) { mapa.removeLayer(circulo); circulo = null; }
         irParaEtapa(1);
-        mensagem('resultado', 'sucesso', `Ocorrência registrada! Protocolo: ${r.dados.protocolo}. Encaminhada ao órgão: ${r.dados.orgao}.`);
+        mensagem('resultado', 'sucesso', `Ocorrência registrada! Protocolo: ${r.dados.protocolo}. Encaminhada ao órgão: ${nomeOrgao(r.dados.orgao)}.`);
         carregarLista();
         capturarLocalizacao();
       } else {

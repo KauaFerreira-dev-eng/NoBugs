@@ -38,6 +38,11 @@ public class TratadorDeErros {
         return resposta(HttpStatus.NOT_FOUND, ErroResponse.de("NAO_ENCONTRADO", ex.getMessage()));
     }
 
+    @ExceptionHandler(AcessoNegadoException.class)
+    public ResponseEntity<ErroResponse> acessoNegado(AcessoNegadoException ex) {
+        return resposta(HttpStatus.FORBIDDEN, ErroResponse.de("SEM_PERMISSAO", ex.getMessage()));
+    }
+
     @ExceptionHandler(CredenciaisInvalidasException.class)
     public ResponseEntity<ErroResponse> credenciais(CredenciaisInvalidasException ex) {
         return resposta(HttpStatus.UNAUTHORIZED, ErroResponse.de("CREDENCIAIS_INVALIDAS", ex.getMessage()));

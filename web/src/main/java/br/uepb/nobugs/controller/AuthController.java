@@ -51,9 +51,9 @@ public class AuthController {
         try {
             autenticacao = authenticationManager.authenticate(
                     UsernamePasswordAuthenticationToken.unauthenticated(
-                            dados.email().trim().toLowerCase(), dados.senha()));
+                            dados.login().trim().toLowerCase(), dados.senha()));
         } catch (AuthenticationException ex) {
-            // mesma resposta para e-mail inexistente e senha errada
+            // mesma resposta para login inexistente e senha errada
             throw new CredenciaisInvalidasException();
         }
 

@@ -32,6 +32,10 @@ public class Usuario {
     @Column(nullable = false)
     private Papel papel;
 
+    /** Órgão do funcionário (papel ORGAO). Fica vazio para morador e administrador. */
+    @Enumerated(EnumType.STRING)
+    private Orgao orgao;
+
     @Column(nullable = false)
     private LocalDateTime criadoEm;
 
@@ -40,10 +44,15 @@ public class Usuario {
     }
 
     public Usuario(String nome, String email, String senhaHash, Papel papel) {
+        this(nome, email, senhaHash, papel, null);
+    }
+
+    public Usuario(String nome, String email, String senhaHash, Papel papel, Orgao orgao) {
         this.nome = nome;
         this.email = email;
         this.senhaHash = senhaHash;
         this.papel = papel;
+        this.orgao = orgao;
         this.criadoEm = LocalDateTime.now();
     }
 
@@ -52,5 +61,6 @@ public class Usuario {
     public String getEmail() { return email; }
     public String getSenhaHash() { return senhaHash; }
     public Papel getPapel() { return papel; }
+    public Orgao getOrgao() { return orgao; }
     public LocalDateTime getCriadoEm() { return criadoEm; }
 }

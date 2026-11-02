@@ -1,0 +1,97 @@
+@startuml
+title Cidade Ouve - Diagrama de classes
+skinparam classAttributeIconSize 0
+
+class Usuario {
+ - id: int
+ - nome: String
+ - email: String
+ - senhaHash: String
+ - perfil: Perfil
+ + podeClassificarRisco(): boolean
+ + podeAtualizarStatus(): boolean
+}
+
+class Ocorrencia {
+ - id: int
+ - protocolo: String
+ - descricao: String
+ - dataRegistro: LocalDateTime
+ - latitude: double
+ - longitude: double
+ - enderecoAproximado: String
+ - status: StatusOcorrencia
+ - risco: NivelRisco
+ + {static} validarDescricao(texto: String): boolean
+ + {static} registrar(descricao: String, categoria: Categoria, lat: double, lng: double): Ocorrencia
+ + {static} buscarSimilar(categoria: Categoria, lat: double, lng: double): Ocorrencia
+ + gerarProtocolo(): String
+ + classificarRisco(nivel: NivelRisco, autor: Usuario): void
+ + atualizarStatus(novo: StatusOcorrencia, autor: Usuario): void
+ + vincularRelato(repetida: Ocorrencia): void
+}
+
+class HistoricoStatus {
+ - id: int
+ - statusAnterior: StatusOcorrencia
+ - statusNovo: StatusOcorrencia
+ - dataHora: LocalDateTime
+ + {static} registrar(oc: Ocorrencia, anterior: StatusOcorrencia, novo: StatusOcorrencia, autor: Usuario): HistoricoStatus
+}
+
+class Notificacao {
+ - id: int
+ - mensagem: String
+ - dataEnvio: LocalDateTime
+ - lida: boolean
+ + {static} enviar(destinatario: Usuario, oc: Ocorrencia, mensagem: String): Notificacao
+ + marcarComoLida(): void
+}
+
+class Categoria {
+ - id: int
+ - nome: String
+ - descricao: String
+ + contarOcorrencias(): int
+}
+
+class Bairro {
+ - id: int
+ - nome: String
+ - cidade: String
+ + contarOcorrencias(): int
+}
+
+enum Perfil {
+ MORADOR
+ ORGAO_PUBLICO
+ ADMINISTRADOR
+}
+
+enum StatusOcorrencia {
+ REGISTRADA
+ EM_ANALISE
+ EM_ANDAMENTO
+ RESOLVIDA
+ + podeAvancarPara(novo: StatusOcorrencia): boolean
+}
+
+enum NivelRisco {
+ BAIXO
+ MEDIO
+ ALTO
+}
+
+Usuario "1" -- "0..*" Ocorrencia : registra >
+Categoria "1" -- "0..*" Ocorrencia : classifica >
+Bairro "1" -- "0..*" Ocorrencia : localiza >
+Ocorrencia "principal\n0..1" -- "vinculadas\n0..*" Ocorrencia : relato repetido
+Ocorrencia "1" *-- "1..*" HistoricoStatus : possui >
+Usuario "1" -- "0..*" HistoricoStatus : responsavel por >
+Usuario "1" -- "0..*" Notificacao : recebe >
+Ocorrencia "1" -- "0..*" Notificacao : gera >
+
+Usuario --> Perfil
+Ocorrencia --> StatusOcorrencia
+Ocorrencia --> NivelRisco
+@enduml

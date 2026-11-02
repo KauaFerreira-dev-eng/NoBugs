@@ -1,0 +1,27 @@
+@startuml
+title Sequencia - Registrar ocorrencia
+actor Morador
+participant ":TelaRegistro" as Tela
+participant ":Ocorrencia" as Oc
+participant ":HistoricoStatus" as Hist
+participant ":Ocorrencia (existente)" as Ex
+
+Morador -> Tela : informar categoria, descricao, local e foto (opcional)
+Tela -> Oc : validarDescricao(texto)
+Oc --> Tela : resultado
+alt descricao preenchida
+ Tela -> Oc : registrar(descricao, categoria, lat, lng, foto, autor)
+ Oc -> Oc : gerarProtocolo()
+ Oc -> Hist : registrar(oc, null, REGISTRADA, autor)
+ Hist --> Oc : ok
+ Oc -> Oc : buscarSimilar(categoria, lat, lng)
+ opt existe ocorrencia semelhante
+  Oc -> Ex : vincularRelato(nova)
+  Ex --> Oc : ok
+ end
+ Oc --> Tela : protocolo
+ Tela --> Morador : exibir protocolo
+else descricao vazia
+ Tela --> Morador : recusar e pedir a descricao
+end
+@enduml
