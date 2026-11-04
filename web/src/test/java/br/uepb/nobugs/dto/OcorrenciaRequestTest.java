@@ -11,7 +11,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-//Testa os critérios de aceite de RF01, RF02, RF03 e RF09 sem precisar subir o sistema. 
+/** Testa os critérios de aceite de RF01, RF02, RF03 e RF09 sem precisar subir o sistema. */
 class OcorrenciaRequestTest {
 
     private static Validator validator;
@@ -27,7 +27,7 @@ class OcorrenciaRequestTest {
 
     @Test
     void aceitaOcorrenciaCompletaComEndereco() {
-        var r = new OcorrenciaRequest("Buraco grande na rua", Categoria.BURACO, "Rua Eixo das Nações, 109", null, null);
+        var r = new OcorrenciaRequest("Buraco grande na rua", Categoria.BURACO, "Rua das Flores, 10", null, null);
         assertTrue(validar(r).isEmpty());
     }
 

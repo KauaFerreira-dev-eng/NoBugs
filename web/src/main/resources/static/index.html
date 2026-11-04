@@ -4,50 +4,370 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cidade Ouve</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1b2a33; }
-    h1 { margin-bottom: .2rem; }
+    /* Estilo inspirado no Padrão Digital de Governo */
+    :root {
+      --azul: #1351B4; --azul-escuro: #071D41; --azul-claro: #DBE8FB;
+      --amarelo: #FFCD07;
+      --texto: #333333; --texto-suave: #555555;
+      --borda: #CCCCCC; --borda-forte: #888888; --fundo: #F8F8F8; --branco: #FFFFFF;
+      --verde: #168821; --verde-fundo: #E3F5E1;
+      --vermelho: #E52207; --vermelho-fundo: #FDE0DB;
+      --aviso-fundo: #FFF5C2; --aviso-borda: #C9A400;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; font-family: Rawline, Raleway, "Helvetica Neue", Arial, sans-serif; color: var(--texto);
+           background: var(--fundo); line-height: 1.5; }
+    a { color: var(--azul); }
+    :focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; box-shadow: 0 0 0 5px var(--azul); }
+
+    /* cabeçalho e rodapé */
+    .faixa { background: var(--azul-escuro); height: 8px; }
+    .cabecalho { background: var(--branco); border-bottom: 1px solid var(--borda); }
+    .cabecalho-conteudo { max-width: 960px; margin: 0 auto; padding: 1rem; display: flex;
+                          justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .marca { font-size: 1.6rem; font-weight: 700; color: var(--azul); margin: 0; }
+    .marca small { display: block; font-size: .85rem; font-weight: 400; color: var(--texto-suave); }
+    .usuario { display: flex; align-items: center; gap: .75rem; }
+    .rodape { background: var(--azul-escuro); color: #fff; margin-top: 3rem; }
+    .rodape-conteudo { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; font-size: .9rem; }
+    .rodape-conteudo p { margin: .2rem 0; }
+
+    main { max-width: 960px; margin: 0 auto; padding: 1rem; }
+    .trilha { font-size: .9rem; color: var(--texto-suave); margin: .5rem 0 1rem; }
+    h2 { color: var(--azul-escuro); margin: 0 0 .5rem; font-size: 1.6rem; }
+    h3 { color: var(--azul-escuro); margin: 0 0 .75rem; font-size: 1.2rem; }
+
+    /* cartão */
+    .cartao { background: var(--branco); border: 1px solid var(--borda); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+
+    /* botões */
+    .btn { font: inherit; font-weight: 600; height: 40px; padding: 0 1.5rem; border-radius: 100em; cursor: pointer;
+           border: 1px solid var(--azul); background: var(--branco); color: var(--azul); }
+    .btn.primario { background: var(--azul); color: #fff; }
+    .btn.primario:hover { background: #0C326F; }
+    .btn.secundario:hover { background: var(--azul-claro); }
+    .btn.pequeno { height: 32px; padding: 0 1rem; font-size: .9rem; }
+    .acoes { display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap; }
+
+    /* formulário */
     label { display: block; margin-top: 1rem; font-weight: 600; }
-    input, select, textarea { width: 100%; padding: .5rem; margin-top: .3rem; box-sizing: border-box; font: inherit; }
-    button { margin-top: 1rem; padding: .6rem 1rem; font: inherit; cursor: pointer; }
-    .msg { margin-top: 1rem; padding: .8rem; border-radius: 6px; }
-    .ok { background: #e3f6e8; } .erro { background: #fde7e7; }
-    small { color: #5b6b75; }
-    li { margin-bottom: .6rem; }
+    .dica { font-weight: 400; color: var(--texto-suave); font-size: .9rem; }
+    input, select, textarea { width: 100%; font: inherit; padding: .55rem .75rem; margin-top: .35rem; color: var(--texto);
+                              background: var(--branco); border: 1px solid var(--borda-forte); border-radius: 4px; }
+    input.invalido, select.invalido, textarea.invalido { border-color: var(--vermelho); border-width: 2px; }
+    .erro-campo { color: var(--vermelho); font-size: .9rem; margin-top: .25rem; min-height: 1.2em; }
+    .linha { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+    .linha .crescer { flex: 1 1 260px; }
+
+    /* mensagens */
+    .mensagem { margin-top: 1rem; padding: .75rem 1rem; border-radius: 4px; border-left: 6px solid; }
+    .mensagem.info { background: var(--azul-claro); border-color: var(--azul); }
+    .mensagem.sucesso { background: var(--verde-fundo); border-color: var(--verde); }
+    .mensagem.erro { background: var(--vermelho-fundo); border-color: var(--vermelho); }
+    .mensagem.aviso { background: var(--aviso-fundo); border-color: var(--aviso-borda); }
+
+    /* abas (login) */
+    .abas { display: flex; border-bottom: 1px solid var(--borda); margin-bottom: 1rem; }
+    .aba { font: inherit; font-weight: 600; background: none; border: none; border-bottom: 4px solid transparent;
+           padding: .75rem 1.25rem; cursor: pointer; color: var(--texto-suave); }
+    .aba[aria-selected="true"] { color: var(--azul); border-bottom-color: var(--azul); }
+
+    /* etapas */
+    .etapas { list-style: none; display: flex; padding: 0; margin: 0 0 1.5rem; gap: .5rem; }
+    .etapas li { flex: 1; text-align: center; font-size: .9rem; color: var(--texto-suave); }
+    .etapas .num { display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center;
+                   border-radius: 50%; border: 2px solid var(--borda-forte); background: var(--branco); font-weight: 700; }
+    .etapas .rotulo { display: block; margin-top: .25rem; }
+    .etapas li.atual { color: var(--azul); font-weight: 700; }
+    .etapas li.atual .num { background: var(--azul); border-color: var(--azul); color: #fff; }
+    .etapas li.feita .num { border-color: var(--azul); color: var(--azul); }
+
+    /* mapa */
+    #mapa { height: 320px; border: 1px solid var(--borda-forte); border-radius: 4px; margin-top: 1rem; background: #e8eef7; }
+
+    /* revisão */
+    .revisao dt { font-weight: 700; margin-top: .75rem; color: var(--azul-escuro); }
+    .revisao dd { margin: 0; }
+
+    /* lista de ocorrências */
+    .ocorrencia { border: 1px solid var(--borda); border-left: 6px solid var(--azul); border-radius: 4px; padding: .75rem 1rem;
+                  margin-bottom: .75rem; background: var(--branco); }
+    .ocorrencia .topo { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; font-weight: 700; }
+    .selo { font-size: .8rem; font-weight: 600; padding: .1rem .6rem; border-radius: 100em; background: var(--azul-claro); color: var(--azul-escuro); }
+    .ocorrencia p { margin: .4rem 0 0; }
+    .meta { color: var(--texto-suave); font-size: .9rem; }
+
+    /* área do órgão / administrador */
+    .reatribuir { display: flex; gap: .5rem; margin-top: .6rem; flex-wrap: wrap; align-items: center; }
+    .reatribuir select { width: auto; flex: 1 1 200px; margin-top: 0; }
+    .historico { display: block; margin-top: .4rem; }
+    .filtro-orgao { max-width: 320px; }
+
+    @media (max-width: 560px) { .etapas .rotulo { font-size: .75rem; } #mapa { height: 260px; } }
   </style>
 </head>
 <body>
-  <h1>Cidade Ouve</h1>
-  <p>Registre um problema urbano no seu bairro.</p>
+  <div class="faixa"></div>
+  <header class="cabecalho">
+    <div class="cabecalho-conteudo">
+      <h1 class="marca">Cidade Ouve <small>Gestor de problemas urbanos</small></h1>
+      <div class="usuario" id="area-usuario" hidden>
+        <span>Olá, <strong id="nome-usuario"></strong></span>
+        <button type="button" class="btn secundario pequeno" id="sair">Sair</button>
+      </div>
+    </div>
+  </header>
 
-  <form id="form">
-    <label for="categoria">Categoria *</label>
-    <select id="categoria"><option value="">Selecione...</option></select>
+  <main>
+    <!-- ===== Entrar / Criar conta ===== -->
+    <section id="tela-login" hidden>
+      <nav class="trilha" aria-label="Você está em">Início &gt; Acesso</nav>
+      <div class="cartao">
+        <h2>Acesse sua conta</h2>
+        <p>Entre ou crie uma conta para registrar problemas urbanos no seu bairro e acompanhar o andamento.</p>
+        <div class="abas" role="tablist">
+          <button type="button" class="aba" role="tab" id="aba-entrar" aria-selected="true">Entrar</button>
+          <button type="button" class="aba" role="tab" id="aba-cadastrar" aria-selected="false">Criar conta</button>
+        </div>
 
-    <label for="descricao">Descrição *</label>
-    <textarea id="descricao" rows="4" maxlength="500"></textarea>
-    <small><span id="contador">0</span>/500</small>
+        <form id="form-login" novalidate>
+          <label for="login-email">E-mail ou login</label>
+          <input id="login-email" autocomplete="username">
+          <label for="login-senha">Senha</label>
+          <input id="login-senha" type="password" autocomplete="current-password">
+          <div class="acoes"><button type="submit" class="btn primario">Entrar</button></div>
+        </form>
 
-    <label for="endereco">Endereço</label>
-    <input id="endereco" placeholder="Rua, número, bairro">
-    <button type="button" id="gps">Usar minha localização</button>
-    <small id="coords"></small>
+        <form id="form-cadastro" novalidate hidden>
+          <label for="cad-nome">Nome</label>
+          <input id="cad-nome" autocomplete="name" maxlength="100">
+          <label for="cad-email">E-mail</label>
+          <input id="cad-email" type="email" autocomplete="username">
+          <label for="cad-senha">Senha <span class="dica">(de 8 a 64 caracteres, com letra e número)</span></label>
+          <input id="cad-senha" type="password" autocomplete="new-password">
+          <div class="acoes"><button type="submit" class="btn primario">Criar conta</button></div>
+        </form>
 
-    <button type="submit">Enviar ocorrência</button>
-  </form>
+        <div id="msg-login" role="status"></div>
+      </div>
+    </section>
 
-  <div id="resultado"></div>
+    <!-- ===== Sistema (só depois do login) ===== -->
+    <section id="tela-app" hidden>
+      <nav class="trilha" aria-label="Você está em">Início &gt; Registrar ocorrência</nav>
 
-  <h2>Ocorrências registradas</h2>
-  <ul id="lista"></ul>
+      <div class="cartao">
+        <h2>Registrar ocorrência</h2>
+        <ol class="etapas" id="etapas" aria-label="Etapas do registro">
+          <li class="atual"><span class="num">1</span><span class="rotulo">Onde</span></li>
+          <li><span class="num">2</span><span class="rotulo">O quê</span></li>
+          <li><span class="num">3</span><span class="rotulo">Revisar</span></li>
+        </ol>
 
+        <form id="form" novalidate>
+          <!-- etapa 1 -->
+          <section data-etapa="1">
+            <h3>Onde está o problema?</h3>
+            <p>Usamos a localização do seu aparelho. <strong>Confira o ponto no mapa:</strong> se estiver errado, clique no mapa
+               ou arraste o marcador até o lugar certo.</p>
+            <div class="linha">
+              <div class="crescer">
+                <label for="endereco">Endereço <span class="dica">(aproximado, você pode corrigir)</span></label>
+                <input id="endereco" placeholder="Rua, número, bairro, cidade" maxlength="250">
+              </div>
+              <button type="button" class="btn secundario" id="buscar">Buscar no mapa</button>
+              <button type="button" class="btn secundario" id="gps">Usar minha localização</button>
+            </div>
+            <div class="erro-campo" id="erro-localizacao" role="alert"></div>
+            <div id="local" role="status" aria-live="polite"></div>
+            <div id="mapa" aria-label="Mapa para conferir a localização"></div>
+          </section>
+
+          <!-- etapa 2 -->
+          <section data-etapa="2" hidden>
+            <h3>O que está acontecendo?</h3>
+            <label for="categoria">Categoria *</label>
+            <select id="categoria"><option value="">Selecione...</option></select>
+            <div class="erro-campo" id="erro-categoria" role="alert"></div>
+
+            <label for="descricao">Descrição *</label>
+            <textarea id="descricao" rows="5" maxlength="500"></textarea>
+            <div class="dica"><span id="contador">0</span>/500 caracteres</div>
+            <div class="erro-campo" id="erro-descricao" role="alert"></div>
+          </section>
+
+          <!-- etapa 3 -->
+          <section data-etapa="3" hidden>
+            <h3>Revise antes de enviar</h3>
+            <dl class="revisao">
+              <dt>Categoria</dt><dd id="rev-categoria"></dd>
+              <dt>Descrição</dt><dd id="rev-descricao"></dd>
+              <dt>Endereço</dt><dd id="rev-endereco"></dd>
+              <dt>Coordenadas</dt><dd id="rev-coordenadas"></dd>
+            </dl>
+          </section>
+
+          <div class="acoes">
+            <button type="button" class="btn secundario" id="voltar" hidden>Voltar</button>
+            <button type="button" class="btn primario" id="continuar">Continuar</button>
+            <button type="submit" class="btn primario" id="enviar" hidden>Enviar ocorrência</button>
+          </div>
+        </form>
+
+        <div id="resultado" role="status"></div>
+      </div>
+
+      <div class="cartao">
+        <h2>Minhas ocorrências</h2>
+        <div id="lista"></div>
+      </div>
+
+      <!-- só aparece para ORGAO e ADMIN -->
+      <div class="cartao" id="area-orgao" hidden>
+        <h2>Área do órgão</h2>
+        <p id="quem-orgao"></p>
+        <p><a href="/painel.html">Abrir painel de gráficos</a></p>
+        <div id="bloco-filtro-orgao">
+          <label for="filtro-orgao">Ver ocorrências do órgão</label>
+          <select id="filtro-orgao" class="filtro-orgao"><option value="">Todos</option></select>
+        </div>
+        <div id="resultado-orgao" role="status"></div>
+        <div id="lista-orgao"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <div class="rodape-conteudo">
+      <p><strong>Cidade Ouve</strong> · Projeto Integrador II · UEPB</p>
+      <p>Projeto acadêmico desenvolvido pela equipe NoBugs.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
-    let latitude = null, longitude = null;
+    let latitude = null, longitude = null, precisaoAtual = null;
+    let enderecoAutomatico = '';          // último endereço que o sistema preencheu sozinho
+    let seqEndereco = 0;                  // evita que uma resposta antiga sobrescreva uma nova
+    let capturando = false;
+    let iniciado = false;
+    let etapa = 1;
+    let mapa = null, marcador = null, circulo = null;
     const $ = (id) => document.getElementById(id);
+    let usuarioAtual = null;
+    let orgaos = [];                      // [{codigo, nome}] vindos de /ocorrencias/orgaos
+    const nomeOrgao = (codigo) => (orgaos.find(o => o.codigo === codigo) || {}).nome || codigo;
+    const ehDoOrgao = () => usuarioAtual && ['ORGAO', 'ADMIN'].includes(usuarioAtual.papel);
 
+    /* ---------- chamadas à API (erro padrão: codigo, mensagem, campos) ---------- */
+    async function api(url, opcoes) {
+      const resp = await fetch(url, opcoes);
+      let dados = null;
+      if (resp.status !== 204) {
+        try { dados = await resp.json(); } catch (e) { dados = null; }
+      }
+      if (resp.status === 401 && dados && dados.codigo === 'NAO_AUTENTICADO') {
+        mostrarTelaLogin('Sua sessão expirou. Entre novamente.');
+      }
+      return { ok: resp.ok, status: resp.status, dados };
+    }
+
+    function textoDoErro(dados) {
+      if (!dados) return 'Erro inesperado. Tente novamente.';
+      const campos = dados.campos ? Object.values(dados.campos) : [];
+      return campos.length ? campos.join(' | ') : (dados.mensagem || 'Erro inesperado. Tente novamente.');
+    }
+
+    function mensagem(idCaixa, classe, texto, linkTexto, linkUrl) {
+      const caixa = $(idCaixa);
+      caixa.innerHTML = '';
+      if (!texto) { caixa.className = ''; return; }
+      const div = document.createElement('div');
+      div.className = 'mensagem ' + classe;
+      div.textContent = texto;
+      if (linkUrl) {
+        div.appendChild(document.createTextNode(' '));
+        const a = document.createElement('a');
+        a.href = linkUrl; a.target = '_blank'; a.rel = 'noopener'; a.textContent = linkTexto;
+        div.appendChild(a);
+      }
+      caixa.appendChild(div);
+    }
+
+    /* ---------- telas ---------- */
+    function mostrarTelaLogin(aviso) {
+      $('tela-app').hidden = true;
+      $('area-usuario').hidden = true;
+      $('tela-login').hidden = false;
+      mensagem('msg-login', 'aviso', aviso || '');
+    }
+
+    function mostrarTelaApp(usuario) {
+      $('tela-login').hidden = true;
+      $('tela-app').hidden = false;
+      $('area-usuario').hidden = false;
+      $('nome-usuario').textContent = usuario.nome;
+      usuarioAtual = usuario;
+      if (!iniciado) { iniciado = true; carregarCategorias(); iniciarMapa(); }
+      irParaEtapa(1);
+      carregarOrgaos().then(() => { carregarLista(); prepararAreaDoOrgao(); });
+      capturarLocalizacao();   // critério do card: preencher a localização automaticamente ao abrir a tela
+    }
+
+    function selecionarAba(entrar) {
+      $('aba-entrar').setAttribute('aria-selected', entrar);
+      $('aba-cadastrar').setAttribute('aria-selected', !entrar);
+      $('form-login').hidden = !entrar;
+      $('form-cadastro').hidden = entrar;
+      mensagem('msg-login', '', '');
+    }
+    $('aba-entrar').addEventListener('click', () => selecionarAba(true));
+    $('aba-cadastrar').addEventListener('click', () => selecionarAba(false));
+
+    /* ---------- login, cadastro e logout ---------- */
+    $('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const r = await api('/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login: $('login-email').value, senha: $('login-senha').value })
+      });
+      if (r.ok) { $('login-senha').value = ''; mostrarTelaApp(r.dados); }
+      else mensagem('msg-login', 'erro', textoDoErro(r.dados));
+    });
+
+    $('form-cadastro').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cadastro = { nome: $('cad-nome').value, email: $('cad-email').value, senha: $('cad-senha').value };
+      const r = await api('/auth/cadastro', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cadastro)
+      });
+      if (!r.ok) { mensagem('msg-login', 'erro', textoDoErro(r.dados)); return; }
+      const entrada = await api('/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login: cadastro.email, senha: cadastro.senha })
+      });
+      $('cad-senha').value = '';
+      if (entrada.ok) mostrarTelaApp(entrada.dados);
+      else { selecionarAba(true); mensagem('msg-login', 'sucesso', 'Conta criada! Agora é só entrar.'); }
+    });
+
+    $('sair').addEventListener('click', async () => {
+      await api('/auth/logout', { method: 'POST' });
+      $('lista').innerHTML = ''; mensagem('resultado', '', '');
+      $('lista-orgao').innerHTML = ''; mensagem('resultado-orgao', '', '');
+      $('area-orgao').hidden = true;
+      usuarioAtual = null;
+      mostrarTelaLogin();
+    });
+
+    /* ---------- categorias e lista ---------- */
     async function carregarCategorias() {
-      const resp = await fetch('/ocorrencias/categorias');
-      (await resp.json()).forEach(c => {
+      const r = await api('/ocorrencias/categorias');
+      if (!r.ok) return;
+      r.dados.forEach(c => {
         const op = document.createElement('option');
         op.value = c.codigo; op.textContent = c.nome;
         $('categoria').appendChild(op);
@@ -55,53 +375,343 @@
     }
 
     async function carregarLista() {
-      const resp = await fetch('/ocorrencias');
+      const r = await api('/ocorrencias/minhas');
       const lista = $('lista'); lista.innerHTML = '';
-      (await resp.json()).forEach(o => {
-        const li = document.createElement('li');
-        li.textContent = `${o.protocolo} | ${o.categoria} | órgão: ${o.orgao} | ${o.status} | ${o.descricao}`;
-        lista.appendChild(li);
+      if (!r.ok) return;
+      if (r.dados.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = 'Você ainda não registrou ocorrências.';
+        lista.appendChild(p);
+        return;
+      }
+      r.dados.forEach(o => {
+        const item = document.createElement('article');
+        item.className = 'ocorrencia';
+        const topo = document.createElement('div'); topo.className = 'topo';
+        const prot = document.createElement('span'); prot.textContent = o.protocolo;
+        const selo = document.createElement('span'); selo.className = 'selo'; selo.textContent = o.status;
+        topo.append(prot, selo);
+        const desc = document.createElement('p'); desc.textContent = o.descricao;
+        const meta = document.createElement('p'); meta.className = 'meta';
+        meta.textContent = `${o.categoria} · órgão: ${nomeOrgao(o.orgao)}` + (o.endereco ? ` · ${o.endereco}` : '');
+        item.append(topo, desc, meta);
+        lista.appendChild(item);
       });
     }
 
+    /* ---------- área do órgão / administrador: listar, reatribuir e ver histórico ---------- */
+    async function carregarOrgaos() {
+      if (orgaos.length > 0) return;
+      const r = await api('/ocorrencias/orgaos');
+      if (!r.ok) return;
+      orgaos = r.dados;
+    }
+
+    function prepararAreaDoOrgao() {
+      $('area-orgao').hidden = !ehDoOrgao();
+      if (!ehDoOrgao()) return;
+      const papel = usuarioAtual.papel === 'ADMIN' ? 'administrador' : 'órgão público';
+      $('bloco-filtro-orgao').hidden = usuarioAtual.papel !== 'ADMIN';   // o órgão sempre vê só as próprias
+      $('quem-orgao').textContent = `Você está logado como ${papel}. Aqui você vê as ocorrências${usuarioAtual.papel === 'ORGAO' ? ' do seu órgão' : ''} e pode trocar o órgão responsável.`;
+      const filtro = $('filtro-orgao');
+      if (filtro.options.length === 1) {
+        orgaos.forEach(o => {
+          const op = document.createElement('option');
+          op.value = o.codigo; op.textContent = o.nome;
+          filtro.appendChild(op);
+        });
+      }
+      carregarListaOrgao();
+    }
+
+    async function carregarListaOrgao() {
+      if (!ehDoOrgao()) return;
+      const filtro = $('filtro-orgao').value;
+      const r = await api('/ocorrencias' + (filtro ? `?orgao=${encodeURIComponent(filtro)}` : ''));
+      const lista = $('lista-orgao'); lista.innerHTML = '';
+      if (!r.ok) return;
+      if (r.dados.length === 0) {
+        const p = document.createElement('p');
+        p.textContent = 'Nenhuma ocorrência para mostrar.';
+        lista.appendChild(p);
+        return;
+      }
+      r.dados.forEach(o => {
+        const item = document.createElement('article');
+        item.className = 'ocorrencia';
+        const topo = document.createElement('div'); topo.className = 'topo';
+        const prot = document.createElement('span'); prot.textContent = o.protocolo;
+        const selo = document.createElement('span'); selo.className = 'selo'; selo.textContent = o.status;
+        topo.append(prot, selo);
+        const desc = document.createElement('p'); desc.textContent = o.descricao;
+        const meta = document.createElement('p'); meta.className = 'meta';
+        meta.textContent = `${o.categoria} · órgão: ${nomeOrgao(o.orgao)}` + (o.endereco ? ` · ${o.endereco}` : '');
+
+        const linha = document.createElement('div'); linha.className = 'reatribuir';
+        const sel = document.createElement('select');
+        sel.setAttribute('aria-label', `Novo órgão da ocorrência ${o.protocolo}`);
+        orgaos.forEach(og => {
+          const op = document.createElement('option');
+          op.value = og.codigo; op.textContent = og.nome;
+          if (og.codigo === o.orgao) op.selected = true;
+          sel.appendChild(op);
+        });
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'btn secundario pequeno'; btn.textContent = 'Reatribuir';
+        btn.addEventListener('click', () => reatribuir(o.id, sel.value));
+        linha.append(sel, btn);
+
+        const hist = document.createElement('span'); hist.className = 'meta historico';
+        item.append(topo, desc, meta, linha, hist);
+        lista.appendChild(item);
+        carregarHistorico(o.id, hist);
+      });
+    }
+
+    async function carregarHistorico(id, elemento) {
+      const r = await api(`/ocorrencias/${id}/historico`);
+      if (!r.ok || r.dados.length === 0) return;
+      const t = r.dados[0];
+      elemento.textContent = `Última troca: ${nomeOrgao(t.orgaoAnterior)} → ${nomeOrgao(t.orgaoNovo)}`
+        + ` por ${t.autor} em ${new Date(t.dataHora).toLocaleString('pt-BR')}`;
+    }
+
+    async function reatribuir(id, orgao) {
+      const r = await api(`/ocorrencias/${id}/orgao`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgao })
+      });
+      if (r.ok) {
+        mensagem('resultado-orgao', 'sucesso', `Ocorrência ${r.dados.protocolo} reatribuída para: ${nomeOrgao(r.dados.orgao)}.`);
+        carregarListaOrgao();
+        carregarLista();
+      } else {
+        mensagem('resultado-orgao', 'erro', textoDoErro(r.dados));
+      }
+    }
+    $('filtro-orgao').addEventListener('change', carregarListaOrgao);
+
     $('descricao').addEventListener('input', () => { $('contador').textContent = $('descricao').value.length; });
 
-    $('gps').addEventListener('click', () => {
-      if (!navigator.geolocation) { $('coords').textContent = 'Seu navegador não tem GPS. Digite o endereço.'; return; }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          latitude = pos.coords.latitude; longitude = pos.coords.longitude;
-          $('coords').textContent = `Localização capturada: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-        },
-        () => { latitude = longitude = null; $('coords').textContent = 'Sem permissão ou GPS falhou. Digite o endereço.'; }
-      );
+    /* ---------- etapas do formulário ---------- */
+    function irParaEtapa(n) {
+      etapa = n;
+      document.querySelectorAll('[data-etapa]').forEach(s => { s.hidden = Number(s.dataset.etapa) !== n; });
+      document.querySelectorAll('#etapas li').forEach((li, i) => {
+        li.className = (i + 1 === n) ? 'atual' : (i + 1 < n ? 'feita' : '');
+        if (i + 1 === n) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+      });
+      $('voltar').hidden = n === 1;
+      $('continuar').hidden = n === 3;
+      $('enviar').hidden = n !== 3;
+      if (n === 1 && mapa) setTimeout(() => mapa.invalidateSize(), 50);
+      if (n === 3) montarRevisao();
+    }
+
+    function marcarErro(idCampo, idErro, texto) {
+      $(idErro).textContent = texto || '';
+      if (idCampo) $(idCampo).classList.toggle('invalido', !!texto);
+    }
+
+    function validarEtapa(n) {
+      if (n === 1) {
+        const tem = $('endereco').value.trim() !== '' || (latitude !== null && longitude !== null);
+        marcarErro('endereco', 'erro-localizacao', tem ? '' : 'Informe a localização: use o GPS, clique no mapa ou digite o endereço.');
+        return tem;
+      }
+      if (n === 2) {
+        const okCat = $('categoria').value !== '';
+        const okDesc = $('descricao').value.trim() !== '';
+        marcarErro('categoria', 'erro-categoria', okCat ? '' : 'A categoria é obrigatória.');
+        marcarErro('descricao', 'erro-descricao', okDesc ? '' : 'A descrição é obrigatória.');
+        return okCat && okDesc;
+      }
+      return true;
+    }
+
+    function montarRevisao() {
+      const op = $('categoria').selectedOptions[0];
+      $('rev-categoria').textContent = op ? op.textContent : '';
+      $('rev-descricao').textContent = $('descricao').value.trim();
+      $('rev-endereco').textContent = $('endereco').value.trim() || 'Não informado (usaremos as coordenadas)';
+      $('rev-coordenadas').textContent = latitude !== null
+        ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+        : 'Sem coordenadas (endereço digitado)';
+    }
+
+    $('continuar').addEventListener('click', () => { if (validarEtapa(etapa)) irParaEtapa(etapa + 1); });
+    $('voltar').addEventListener('click', () => irParaEtapa(etapa - 1));
+
+    /* ---------- mapa e localização ---------- */
+    function iniciarMapa() {
+      if (typeof L === 'undefined') {
+        $('mapa').textContent = 'O mapa não pôde ser carregado (sem internet?). Você ainda pode usar o GPS ou digitar o endereço.';
+        return;
+      }
+      mapa = L.map('mapa').setView([-14.2, -51.9], 4);   // Brasil inteiro até termos uma posição
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; Colaboradores do OpenStreetMap'
+      }).addTo(mapa);
+      mapa.on('click', (e) => definirPonto(e.latlng.lat, e.latlng.lng, true, null));
+    }
+
+    function desenharNoMapa(lat, lon, precisao) {
+      if (!mapa) return;
+      if (!marcador) {
+        marcador = L.marker([lat, lon], { draggable: true }).addTo(mapa);
+        marcador.on('dragend', (e) => { const p = e.target.getLatLng(); definirPonto(p.lat, p.lng, true, null); });
+      } else {
+        marcador.setLatLng([lat, lon]);
+      }
+      if (circulo) { mapa.removeLayer(circulo); circulo = null; }
+      if (precisao) circulo = L.circle([lat, lon], { radius: precisao, weight: 1 }).addTo(mapa);
+      mapa.setView([lat, lon], precisao && precisao > 1000 ? 13 : 17);
+    }
+
+    // Monta um endereço curto (cabe no banco) a partir da resposta do OpenStreetMap.
+    async function buscarEndereco(lat, lon) {
+      try {
+        const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=pt-BR'
+                  + `&lat=${lat}&lon=${lon}`;
+        const resp = await fetch(url);
+        if (!resp.ok) return null;
+        const a = (await resp.json()).address || {};
+        const rua = [a.road, a.house_number].filter(Boolean).join(', ');
+        const bairro = a.suburb || a.neighbourhood || a.quarter || '';
+        const cidade = a.city || a.town || a.village || a.municipality || '';
+        const texto = [rua, bairro, cidade, a.state].filter(Boolean).join(' - ');
+        return texto ? texto.slice(0, 200) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function resumoDoPonto() {
+      let texto = `Localização marcada: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}.`;
+      let classe = 'info';
+      if (precisaoAtual) {
+        texto += ` Precisão do aparelho: cerca de ${Math.round(precisaoAtual)} m.`;
+        if (precisaoAtual > 500) {
+          texto += ' A precisão está baixa: computadores sem GPS usam a localização pela internet e podem errar bastante.';
+          classe = 'aviso';
+        }
+      }
+      return { texto, classe };
+    }
+
+    // manual = o próprio usuário clicou/arrastou/buscou (então o endereço automático pode ser trocado)
+    async function definirPonto(lat, lon, manual, precisao) {
+      latitude = lat; longitude = lon; precisaoAtual = precisao;
+      marcarErro('endereco', 'erro-localizacao', '');
+      desenharNoMapa(lat, lon, precisao);
+      const r = resumoDoPonto();
+      const mapaUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
+      mensagem('local', r.classe, r.texto + ' Confira no mapa e, se estiver errado, clique ou arraste o marcador.', 'Abrir em outra aba', mapaUrl);
+
+      const minha = ++seqEndereco;
+      const endereco = await buscarEndereco(lat, lon);
+      if (minha !== seqEndereco || !endereco) return;
+      const campo = $('endereco');
+      if (manual || campo.value.trim() === '' || campo.value === enderecoAutomatico) {
+        campo.value = endereco;
+        enderecoAutomatico = endereco;
+      }
+    }
+
+    // Combina uma leitura rápida (rede) com o GPS de alta precisão e fica com a mais precisa em até 10 s.
+    function capturarLocalizacao() {
+      if (capturando) return;
+      if (!navigator.geolocation) {
+        mensagem('local', 'aviso', 'Seu navegador não tem localização. Clique no mapa ou digite o endereço.');
+        return;
+      }
+      capturando = true;
+      mensagem('local', 'info', 'Obtendo sua localização...');
+
+      let melhor = null, ultimoErro = null, terminou = false;
+      const considerar = (pos) => {
+        if (!melhor || pos.coords.accuracy < melhor.coords.accuracy) melhor = pos;
+        if (pos.coords.accuracy <= 50) finalizar();
+      };
+      const falhou = (erro) => { ultimoErro = erro; if (erro.code === 1) finalizar(); };
+
+      navigator.geolocation.getCurrentPosition(considerar, falhou, { enableHighAccuracy: false, timeout: 8000, maximumAge: 0 });
+      const idMonitor = navigator.geolocation.watchPosition(considerar, falhou,
+                                                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+      const idTempo = setTimeout(finalizar, 10000);
+
+      function finalizar() {
+        if (terminou) return;
+        terminou = true;
+        navigator.geolocation.clearWatch(idMonitor);
+        clearTimeout(idTempo);
+        capturando = false;
+        if (melhor) {
+          definirPonto(melhor.coords.latitude, melhor.coords.longitude, false, melhor.coords.accuracy);
+        } else if (ultimoErro && ultimoErro.code === 1) {
+          mensagem('local', 'aviso', 'Permissão de localização negada. Clique no mapa ou digite o endereço.');
+        } else {
+          mensagem('local', 'aviso', 'Não foi possível obter a localização. Tente de novo, clique no mapa ou digite o endereço.');
+        }
+      }
+    }
+    $('gps').addEventListener('click', capturarLocalizacao);
+
+    // Busca o endereço digitado e leva o marcador até ele.
+    $('buscar').addEventListener('click', async () => {
+      const consulta = $('endereco').value.trim();
+      if (!consulta) { marcarErro('endereco', 'erro-localizacao', 'Digite um endereço para buscar.'); return; }
+      mensagem('local', 'info', 'Procurando o endereço...');
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q='
+                  + encodeURIComponent(consulta);
+        const resp = await fetch(url);
+        const achados = resp.ok ? await resp.json() : [];
+        if (achados.length === 0) {
+          mensagem('local', 'aviso', 'Não encontramos esse endereço. Tente incluir a cidade ou clique no mapa.');
+          return;
+        }
+        definirPonto(parseFloat(achados[0].lat), parseFloat(achados[0].lon), false, null);
+      } catch (e) {
+        mensagem('local', 'aviso', 'Não foi possível buscar o endereço agora. Clique no mapa ou use o GPS.');
+      }
     });
 
+    /* ---------- envio da ocorrência ---------- */
     $('form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!validarEtapa(1)) { irParaEtapa(1); return; }
+      if (!validarEtapa(2)) { irParaEtapa(2); return; }
       const corpo = {
         descricao: $('descricao').value,
         categoria: $('categoria').value || null,
         endereco: $('endereco').value,
         latitude, longitude
       };
-      const resp = await fetch('/ocorrencias', {
+      const r = await api('/ocorrencias', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
       });
-      const dados = await resp.json();
-      const box = $('resultado');
-      if (resp.ok) {
-        box.className = 'msg ok';
-        box.textContent = `Ocorrência registrada! Protocolo: ${dados.protocolo} (encaminhada a: ${dados.orgao})`;
-        $('form').reset(); latitude = longitude = null; $('coords').textContent = ''; $('contador').textContent = '0';
+      if (r.ok) {
+        $('form').reset();
+        latitude = longitude = precisaoAtual = null; enderecoAutomatico = '';
+        $('contador').textContent = '0';
+        mensagem('local', '', '');
+        if (marcador && mapa) { mapa.removeLayer(marcador); marcador = null; }
+        if (circulo && mapa) { mapa.removeLayer(circulo); circulo = null; }
+        irParaEtapa(1);
+        mensagem('resultado', 'sucesso', `Ocorrência registrada! Protocolo: ${r.dados.protocolo}. Encaminhada ao órgão: ${nomeOrgao(r.dados.orgao)}.`);
         carregarLista();
+        capturarLocalizacao();
       } else {
-        box.className = 'msg erro';
-        box.textContent = dados.campos ? Object.values(dados.campos).join(' | ') : dados.erro;
+        mensagem('resultado', 'erro', textoDoErro(r.dados));
       }
     });
 
-    carregarCategorias(); carregarLista();
+    /* ---------- início: já existe sessão? ---------- */
+    (async function iniciar() {
+      const r = await fetch('/auth/eu');
+      if (r.ok) mostrarTelaApp(await r.json());
+      else mostrarTelaLogin();
+    })();
   </script>
 </body>
 </html>

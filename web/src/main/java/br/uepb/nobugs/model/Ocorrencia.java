@@ -5,8 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
@@ -48,12 +51,18 @@ public class Ocorrencia {
     @Column(nullable = false)
     private LocalDateTime criadoEm;
 
+    /** Quem registrou a ocorrência (base do "Minhas ocorrências"). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "autor_id")
+    private Usuario autor;
+
     /** Construtor vazio exigido pelo JPA. */
     protected Ocorrencia() {
     }
 
     public Ocorrencia(String descricao, Categoria categoria,
-                      String endereco, Double latitude, Double longitude) {
+                      String endereco, Double latitude, Double longitude, Usuario autor) {
+        this.autor = autor;
         this.descricao = descricao;
         this.categoria = categoria;
         this.orgao = categoria.getOrgao();   // RN01: o órgão vem da categoria
@@ -77,4 +86,10 @@ public class Ocorrencia {
     public Double getLongitude() { return longitude; }
     public Status getStatus() { return status; }
     public LocalDateTime getCriadoEm() { return criadoEm; }
+    public Usuario getAutor() { return autor; }
+
+    /** Troca o órgão responsável. Quem chama (o service) é que confere permissão e registra o histórico. */
+    public void reatribuirOrgao(Orgao novoOrgao) {
+        this.orgao = novoOrgao;
+    }
 }
