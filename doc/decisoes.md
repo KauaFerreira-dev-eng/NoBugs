@@ -1,0 +1,27 @@
+# Documento de decisões — Entrega 3
+
+**Equipe NoBugs · Sistema Cidade Ouve · Banco relacional (H2 no desenvolvimento, script compatível com PostgreSQL)**
+
+## 1. Quais tabelas nasceram na normalização, e de que violação cada uma veio
+
+Partimos de uma planilha única com uma linha por ocorrência, trazendo junto o nome e a descrição da categoria, o bairro e a cidade, os dados do morador, a lista de mudanças de status e os avisos enviados. Dessa planilha saíram seis tabelas. **categoria** nasceu porque o nome e a descrição do tipo de problema se repetiam em toda ocorrência e dependem só da categoria, não da ocorrência (2ª e 3ª forma normal). **bairro** veio de uma dependência transitiva: a cidade depende do bairro, e não da ocorrência (3ª forma normal). **usuario** veio do mesmo problema com nome, e-mail e perfil, e serve ao morador que registra e ao órgão público ou administrador que muda o status. **historico_status** e **notificacao** vieram da 1ª forma normal: uma ocorrência passa por vários status e gera vários avisos, e na planilha isso viraria colunas repetidas (status1, status2...) ou uma lista dentro de uma célula. O que sobrou, dados que dependem só da ocorrência, ficou em **ocorrencia**. O relato repetido do mesmo problema não precisou de tabela de ligação, porque cada relato aponta para no máximo uma ocorrência principal: é uma chave estrangeira da tabela para ela mesma. O modelo não tem relação muitos-para-muitos.
+
+## 2. Houve desnormalização?
+
+Sim, uma. A coluna `ocorrencia.status` repete o `status_novo` do registro mais recente de `historico_status`. Mantivemos a cópia porque o painel e as listas filtram ocorrências por status o tempo todo, e descobrir o último status pelo histórico exigiria uma subconsulta para cada ocorrência. Quem mantém os dois lugares em sincronia é o método `atualizarStatus(novo, autor)` da classe Ocorrencia: numa única transação ele altera o status e chama `HistoricoStatus.registrar(...)`, e nenhum outro trecho do código escreve nessa coluna. Se uma das duas gravações falhar, nenhuma é salva. O `endereco_aproximado` também é guardado, mas não é duplicação interna: é o resultado de uma API externa, gravado como foto do momento do registro, porque a API pode mudar de resposta ou falhar. Já o `contarOcorrencias()` de Categoria e Bairro não é coluna, é consulta, justamente para não criar outra cópia.
+
+## 3. Tipos escolhidos para dinheiro, data e identificador
+
+O sistema não guarda dinheiro; se um dia guardar, será DECIMAL, nunca FLOAT. **Datas** são TIMESTAMP (`data_registro`, `data_hora`, `data_envio`), não DATE, porque a ordem das mudanças de status no mesmo dia importa para o histórico. **Latitude e longitude** são DECIMAL(9,6), e não o `double` do diagrama de classes: o valor é exato, seis casas dão cerca de 10 cm de precisão, e o método `buscarSimilar` compara pontos muito próximos, o que o arredondamento binário do ponto flutuante atrapalharia. **Identificadores** são INTEGER gerado pelo banco (IDENTITY) em todas as tabelas, chave artificial. O `protocolo` e o `email` são candidatos naturais, mas ficam como UNIQUE e não como chave primária, porque o formato do protocolo pode mudar e a chave se repetiria em várias chaves estrangeiras. Os enums do diagrama (Perfil, StatusOcorrencia, NivelRisco) são VARCHAR com CHECK: o banco recusa valor fora da lista sem precisar de uma tabela para três ou quatro valores fixos, ao custo de ter que alterar o CHECK se a lista mudar.
+
+## 4. O que acontece quando um registro referenciado é apagado
+
+**RESTRICT** em categoria, bairro e usuário (quem registrou) em relação a ocorrencia, e em usuário (autor) em relação a historico_status: o banco recusa apagar uma categoria, um bairro ou um morador que tenham ocorrências, porque as estatísticas e o histórico do cidadão não podem desaparecer, e o histórico precisa preservar quem fez cada mudança. **SET NULL** na ligação entre relatos: se a ocorrência principal for apagada, os relatos vinculados continuam existindo e passam a ser ocorrências independentes. **CASCADE** em historico_status e notificacao em relação à ocorrência, porque o histórico é parte da ocorrência (composição no diagrama) e um aviso sobre ocorrência que não existe mais perde o sentido; e também em notificacao em relação ao destinatário, já que os avisos de quem saiu do sistema não têm mais para quem ser mostrados. Na prática o sistema não deve apagar ocorrências, apenas mudar o status; as regras existem para o banco se defender de um erro da aplicação.
+
+## Por que relacional
+
+O Cidade Ouve é um cadastro com relatório: dados de forma fixa, ligados entre si, e consultados por vários campos ao mesmo tempo (bairro, categoria, status). A integridade importa mais que a flexibilidade: uma ocorrência não pode apontar para categoria inexistente, e a mudança de status e seu histórico precisam gravar juntos, ou nenhum. O volume de escrita é o de uma cidade, sem necessidade de distribuir. Um banco de documentos permitiria guardar a ocorrência inteira num bloco só, mas a validação passaria para a aplicação, categoria e bairro se repetiriam em cada documento, e o painel por bairro e categoria ficaria mais difícil de consultar.
+
+## O que o modelo ainda não cobre
+
+O modelo segue o diagrama de classes da equipe (PR #3), que não tem classe para o órgão responsável nem atributo para a foto da ocorrência (RF05). Quando o diagrama for atualizado, o órgão vira uma tabela própria ligada a `ocorrencia`, e a foto vira uma coluna de caminho ou, se aceitar mais de uma, uma tabela `foto`.
