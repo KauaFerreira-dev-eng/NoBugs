@@ -1,0 +1,92 @@
+@startuml
+title NoBugs / Cidade Ouve - Modelo lógico (Entrega 3)
+hide circle
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam entity {
+  BackgroundColor #F7FBF7
+  BorderColor #2E7D32
+}
+skinparam ArrowColor #1B5E20
+skinparam shadowing false
+
+entity categoria {
+  * **id** : INTEGER <<PK>>
+  --
+  * nome : VARCHAR(60) <<UK>>
+  descricao : VARCHAR(200)
+}
+
+entity bairro {
+  * **id** : INTEGER <<PK>>
+  --
+  * nome : VARCHAR(80)
+  * cidade : VARCHAR(80)
+  (nome, cidade) <<UK>>
+}
+
+entity usuario {
+  * **id** : INTEGER <<PK>>
+  --
+  * nome : VARCHAR(100)
+  * email : VARCHAR(120) <<UK>>
+  * senha_hash : VARCHAR(100)
+  * perfil : VARCHAR(15)
+}
+
+entity ocorrencia {
+  * **id** : INTEGER <<PK>>
+  --
+  * protocolo : VARCHAR(20) <<UK>>
+  * descricao : VARCHAR(500)
+  * data_registro : TIMESTAMP
+  * latitude : DECIMAL(9,6)
+  * longitude : DECIMAL(9,6)
+  endereco_aproximado : VARCHAR(255)
+  * status : VARCHAR(15)
+  * risco : VARCHAR(10)
+  --
+  * categoria_id : INTEGER <<FK>>
+  * bairro_id : INTEGER <<FK>>
+  * usuario_id : INTEGER <<FK>>
+  ocorrencia_principal_id : INTEGER <<FK>>
+}
+
+entity historico_status {
+  * **id** : INTEGER <<PK>>
+  --
+  status_anterior : VARCHAR(15)
+  * status_novo : VARCHAR(15)
+  * data_hora : TIMESTAMP
+  --
+  * ocorrencia_id : INTEGER <<FK>>
+  * autor_id : INTEGER <<FK>>
+}
+
+entity notificacao {
+  * **id** : INTEGER <<PK>>
+  --
+  * mensagem : VARCHAR(255)
+  * data_envio : TIMESTAMP
+  * lida : BOOLEAN
+  --
+  * ocorrencia_id : INTEGER <<FK>>
+  * destinatario_id : INTEGER <<FK>>
+}
+
+categoria ||-down-o{ ocorrencia : classifica [RESTRICT]
+bairro ||-down-o{ ocorrencia : localiza [RESTRICT]
+usuario ||-left-o{ ocorrencia : registra [RESTRICT]
+ocorrencia |o--o{ ocorrencia : relato vinculado [SET NULL]
+ocorrencia ||-down-|{ historico_status : possui [CASCADE]
+usuario ||-down-o{ historico_status : é autor [RESTRICT]
+ocorrencia ||-down-o{ notificacao : gera [CASCADE]
+usuario ||-down-o{ notificacao : recebe [CASCADE]
+
+legend bottom right
+  PK = chave primária  |  FK = chave estrangeira  |  UK = valor único
+  Colunas com asterisco são obrigatórias (NOT NULL).
+  Entre colchetes: o que acontece no apagamento (ON DELETE).
+  Os enums Perfil, StatusOcorrencia e NivelRisco viram colunas de texto com CHECK.
+endlegend
+@enduml
